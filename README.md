@@ -1,4 +1,4 @@
-Clanker powered. 
+Clanker powered plugin.
 
 When you compile firmware, put the files with the plugins and add the following to your plugins file:
 
