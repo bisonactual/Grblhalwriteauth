@@ -1,3 +1,13 @@
+Clanker powered. 
+
+When you compile firmware, put the files with the plugins and add the following to your plugins file:
+
+#include "settings_lock.h"
+
+" include settings_lock_init();
+
+
+
 ## How it works
 
 **Stream interception**  is the core mechanism. grblHAL exposes  `hal.stream.read`  as a swappable function pointer — the same trick the SD-card plugin uses. We replace it with  `intercepted_read()`, which buffers incoming characters until a full line is assembled, then either blocks it or releases it one character at a time to the protocol loop.
