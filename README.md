@@ -1,50 +1,47 @@
 Clanker powered plugin.
 
-When you compile firmware, put the files with the plugins and add the following to your plugins file:
+# Settings Lock — grblHAL Plugin
 
-#include "settings_lock.h"
+Password-protect your grblHAL settings over serial/USB. Prevents accidental or unauthorized changes to `$<number>=value` and `$RST=` commands.
 
-" include settings_lock_init();
-
-
-
-## How it works
-
-**Stream interception**  is the core mechanism. grblHAL exposes  `hal.stream.read`  as a swappable function pointer — the same trick the SD-card plugin uses. We replace it with  `intercepted_read()`, which buffers incoming characters until a full line is assembled, then either blocks it or releases it one character at a time to the protocol loop.
-
-**What gets blocked when locked:**
-
--   `$N=value`  — any numbered setting write
--   `$RST=*`  — settings reset
-
-**What always passes through:**
-
--   Real-time bytes (`!`,  `?`,  `~`, Ctrl-X, 0x80–0xBF) — bypass buffering entirely, so feed-hold and soft-reset always work
--   All G-code
--   Read-only  `$`  commands (`$$`,  `$G`,  `$I`,  `$H`,  `$X`, etc.)
-
-----------
+The password is stored in NVS (survives power cycles). The unlocked state lives in RAM only and resets to **locked** on every soft reset.
 
 ## Commands
 
-Command
+| Command | Description |
+|---|---|
+| `$SETPWD=<password>` | Set or change the password (max 32 chars). Must be unlocked first if a password already exists. |
+| `$SETPWD=` | Clear the password and disable the lock. |
+| `$UNLOCK=<password>` | Unlock settings for the current session. |
+| `$LOCK` | Re-lock settings immediately. |
 
-Effect
+## Behavior
 
-`$SETPWD=mypassword`
+- When locked, any `$<number>=value` or `$RST=` command is rejected with a message prompting you to unlock.
+- On soft reset, the lock re-engages automatically.
+- If no password is set, settings writes pass through normally.
 
-Set the password (first time, or while unlocked)
+## Status Reporting
 
-`$UNLOCK=mypassword`
+Run `$$` or `$I` to see the plugin status:
 
-Unlock this session
+```
+[PLUGIN:SETTINGS LOCK v1.0]
+[SETLOCK:LOCKED]
+```
 
-`$LOCK`
+Possible states: `LOCKED`, `UNLOCKED`, or `DISABLED - no password set`.
 
-Re-lock immediately
+## Installation
 
-`$SETPWD=`
+Add `settings_lock.c` to your grblHAL build and call `settings_lock_init()` from your plugin initialization code (e.g. in `my_plugin_init.c` or the driver's init chain).
 
-Clear password — disables locking
+## Quick Start
 
-The lock re-engages automatically on every soft reset (Ctrl-X) via  `grbl.on_reset`, so it can't be bypassed that way.
+```
+$SETPWD=secret123      → Password saved. Use $LOCK to lock now.
+$LOCK                   → Settings locked.
+$110=1000               → Settings are locked. Send $UNLOCK=<password> to unlock.
+$UNLOCK=secret123       → Settings unlocked.
+$110=1000               → ok
+```
